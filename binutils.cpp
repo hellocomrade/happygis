@@ -2,7 +2,7 @@
 
 BinUtils::BinUtils(double binSize):binSize(binSize)
 {
-    long long maxBinsPerAxis=2;//(long long)sqrt(std::numeric_limits<long long>::max());
+    long long maxBinsPerAxis=(long long)sqrt(std::numeric_limits<long long>::max());
     double size=(binSize<1)?maxBinsPerAxis*binSize:maxBinsPerAxis;
     extentMax=size/2;
     extentMin=extentMax-size;

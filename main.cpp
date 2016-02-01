@@ -81,10 +81,10 @@ void testGeohashNeighbors()
     cout << "Expect 1: " << naiveMoveXByOne(3, 2, false) << endl;
 
     //outliers
-    cout << "Expect 0: " << naiveMoveXByOne(2, 2) << endl;
-    cout << "Expect 2: " << naiveMoveXByOne(0, 2, false) << endl;
-    cout << "Expect 1: " << naiveMoveXByOne(3, 2) << endl;
-    cout << "Expect 3: " << naiveMoveXByOne(1, 2, false) << endl;
+    cout << "Expect 2: " << naiveMoveXByOne(2, 2) << endl;
+    cout << "Expect 0: " << naiveMoveXByOne(0, 2, false) << endl;
+    cout << "Expect 3: " << naiveMoveXByOne(3, 2) << endl;
+    cout << "Expect 1: " << naiveMoveXByOne(1, 2, false) << endl;
 
 /************************Move North-South***************************************************/
     cout << "Move North-South" << endl;
@@ -94,10 +94,10 @@ void testGeohashNeighbors()
     cout << "Expect 2: " << naiveMoveYByOne(3, 2, false) << endl;
 
     //outliers
-    cout << "Expect 0: " << naiveMoveYByOne(1, 2) << endl;
-    cout << "Expect 1: " << naiveMoveYByOne(0, 2, false) << endl;
-    cout << "Expect 2: " << naiveMoveYByOne(3, 2) << endl;
-    cout << "Expect 3: " << naiveMoveYByOne(2, 2, false) << endl;
+    cout << "Expect 1: " << naiveMoveYByOne(1, 2) << endl;
+    cout << "Expect 0: " << naiveMoveYByOne(0, 2, false) << endl;
+    cout << "Expect 3: " << naiveMoveYByOne(3, 2) << endl;
+    cout << "Expect 2: " << naiveMoveYByOne(2, 2, false) << endl;
 
     //4 bits: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
     //this forms a 16-cell grid that is just sufficient to test all neigbors around the one at the center
@@ -115,6 +115,10 @@ void testGeohashNeighbors()
     cout << "Expect 14: " << naiveMoveXByOne(hash12, 4) << endl; //1110
     cout << "Index 12's West:" << endl;
     cout << "Expect 6: " << naiveMoveXByOne(hash12, 4, false) << endl; //0110, move west
+    cout << "Index 12's North:" << endl;
+    cout << "Expect 13: " << naiveMoveYByOne(hash12, 4) << endl; //1101, move north
+    cout << "Index 12's West:" << endl;
+    cout << "Expect 9: " << naiveMoveYByOne(hash12, 4, false) << endl; //1001, move south
 
 
 }

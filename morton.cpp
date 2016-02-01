@@ -76,25 +76,26 @@ static uint64_t naiveMoveByOne(uint64_t val, const uint8_t start, uint8_t bitLen
 {
     assert(1 == start || 0 == start);
     uint64_t mask = (1LL << start);
-    //we could have an overflow here,
+    //we could have an overflow here due to the size of the bit sequence,
     //say given bitLen = 2, index 0 move west(return 2), or index 2 move east(return 0)
+    uint64_t oldVal = val;
     for(int i = start; i < bitLen; i += 2)
     {
         if(0 == (val & mask))
         {
             val |= mask;
             if(0 == flag) // addition break here
-                break;
+                return val;
         }
         else//val has 1 set at pos i
         {
             val &= (val ^ mask);
             if(1 == flag) //substraction break here
-                break;
+                return val;
         }
         mask <<= 2;
     }
-    return val;
+    return oldVal;
 }
 
 uint64_t naiveMoveXByOne(uint64_t hash, const uint8_t bitLen, bool moveEast)

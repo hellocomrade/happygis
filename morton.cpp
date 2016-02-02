@@ -135,14 +135,14 @@ Envelope naiveDecodeGeohash(const int64_t code, const uint8_t bitLen, Envelope b
     {
         if(0 == (i&1))
         {
-            if((code & (1ll<<(pos-i))) == 0) //lng < midpoint
+            if((code & (1ULL<<(pos-i))) == 0) //lng < midpoint
                 env.xmax = (env.xmax + env.xmin) / 2;
             else
                 env.xmin = (env.xmax + env.xmin) / 2;
         }
         else
         {
-            if((code & (1ll<<(pos-i))) == 0) //lat < midpoint
+            if((code & (1ULL<<(pos-i))) == 0) //lat < midpoint
                 env.ymax = (env.ymax + env.ymin)/2;
             else
                 env.ymin = (env.ymax + env.ymin)/2;
@@ -153,7 +153,7 @@ Envelope naiveDecodeGeohash(const int64_t code, const uint8_t bitLen, Envelope b
 static uint64_t naiveMoveByOne(uint64_t val, const uint8_t start, uint8_t bitLen, int8_t flag)
 {
     assert(1 == start || 0 == start);
-    uint64_t mask = (1LL << start);
+    uint64_t mask = (1ULL << start);
     //we could have an overflow here due to the size of the bit sequence,
     //say given bitLen = 2, index 0 move west(return 2), or index 2 move east(return 0)
     uint64_t oldVal = val;
@@ -253,8 +253,8 @@ static uint64_t move_x(uint64_t code, int8_t d, const uint8_t bitLen)
 {
     if (d == 0)
         return code;
-    uint64_t x = code & 0xaaaaaaaaaaaaaaaaLL; //isolate even bits
-    uint64_t y = code & 0x5555555555555555LL; //isolate odd bits
+    uint64_t x = code & 0xaaaaaaaaaaaaaaaaULL; //isolate even bits
+    uint64_t y = code & 0x5555555555555555ULL; //isolate odd bits
     /*
      * Create a mask so we could transmit addition/subtraction carry/borrow onto even bits.
      * The idea is to make sure all odd bits are 1s, so if there is a carry by adding one,
@@ -273,7 +273,7 @@ static uint64_t move_x(uint64_t code, int8_t d, const uint8_t bitLen)
      *
      *      It's like: 011 + 001 = 100, if we only look at the even bits
     */
-    uint64_t msk = 0x5555555555555555LL >> (64 - bitLen);
+    uint64_t msk = 0x5555555555555555ULL >> (64 - bitLen);
     if (d > 0)
         x = x + (msk + 1);
     else
@@ -281,6 +281,6 @@ static uint64_t move_x(uint64_t code, int8_t d, const uint8_t bitLen)
         x = x | msk;
         x = x - (msk + 1);
     }
-    x &= (0xaaaaaaaaaaaaaaaaLL >> (64 - bitLen));
+    x &= (0xaaaaaaaaaaaaaaaaULL >> (64 - bitLen));
     return (x | y);
 }

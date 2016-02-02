@@ -73,6 +73,9 @@ void testGeohashNeighbors()
     cout << "Index 2: " << naiveEncodeGeohash(180, -90, 2)<<endl;
     cout << "Index 3: " << naiveEncodeGeohash(180, 90, 2)<<endl;
 
+    //To find a range, we just increment the hash by 1 to find the upper range at of the box
+
+
 /************************Move East-West***************************************************/
     cout << "Move East-West" << endl;
     cout << "Expect 2: " << naiveMoveXByOne(0, 2) << endl;
@@ -113,14 +116,34 @@ void testGeohashNeighbors()
     //the starting point when the longitude is hashed. So even:[1,0] is [1,1] now.
     cout << "Index 12's East:" << endl;
     cout << "Expect 14: " << naiveMoveXByOne(hash12, 4) << endl; //1110
+    assert(14 == naiveNeighbor(hash12, 4, GH_DIRECTION::EAST));
     cout << "Index 12's West:" << endl;
     cout << "Expect 6: " << naiveMoveXByOne(hash12, 4, false) << endl; //0110, move west
+    assert(6 == naiveNeighbor(hash12, 4, GH_DIRECTION::WEST));
     cout << "Index 12's North:" << endl;
     cout << "Expect 13: " << naiveMoveYByOne(hash12, 4) << endl; //1101, move north
+    assert(13 == naiveNeighbor(hash12, 4, GH_DIRECTION::NORTH));
     cout << "Index 12's West:" << endl;
     cout << "Expect 9: " << naiveMoveYByOne(hash12, 4, false) << endl; //1001, move south
+    assert(9 == naiveNeighbor(hash12, 4, GH_DIRECTION::SOUTH));
+    cout << "Index 12's NorthEast:" << endl;
+    cout << "Expect 15: " << naiveNeighbor(hash12, 4, GH_DIRECTION::NORTHEAST) << endl; //1111, move northeast
+    cout << "Index 12's NorthWest:" << endl;
+    cout << "Expect 7: " << naiveNeighbor(hash12, 4, GH_DIRECTION::NORTHWEST) << endl; //0111, move northwest
+    cout << "Index 12's SouthEast:" << endl;
+    cout << "Expect 11: " << naiveNeighbor(hash12, 4, GH_DIRECTION::SOUTHEAST) << endl; //1011, move southeast
+    cout << "Index 12's SouthWest:" << endl;
+    cout << "Expect 3: " << naiveNeighbor(hash12, 4, GH_DIRECTION::SOUTHWEST) << endl; //0011, move southeast
 
-
+    //outliers:
+    uint64_t hash15 = naiveEncodeGeohash(180,90,4);
+    cout << "Index 15: " << hash15 <<endl;//1111
+    cout << "Expect 15: " << naiveNeighbor(hash15, 4, GH_DIRECTION::NORTHEAST) << endl;
+    cout << "Expect 13: " << naiveNeighbor(hash15, 4, GH_DIRECTION::NORTHWEST) << endl;
+    cout << "Expect 14: " << naiveNeighbor(hash15, 4, GH_DIRECTION::SOUTHEAST) << endl;
+    cout << "Expect 12: " << naiveNeighbor(hash15, 4, GH_DIRECTION::SOUTHWEST) << endl;
+    cout << "Expect 15: " << naiveNeighbor(hash15, 4, GH_DIRECTION::EAST) << endl;
+    cout << "Expect 13: " << naiveNeighbor(hash15, 4, GH_DIRECTION::WEST) << endl;
 }
 
 void testlonlatDistance()
@@ -136,13 +159,51 @@ void testlonlatDistance()
     cout << "Expect around 0:" << std::setprecision(20) << lonlatDistHaversine(360, 0, 0, 0) << endl;
 }
 
-int main()
+void testCellLowerUpperRange()
 {
-    testlonlatDistance();
-    testGeohashNeighbors();
-    testGeohash();
-    return 0;
+    //4 bits: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+    //this forms a 16-cell grid that is just sufficient to test all neigbors around the one at the center
+    //This 4 by 4 grid's indexes looks like:
+    // 5, 7, 13, 15
+    // 4, 6, 12, 14
+    // 1, 3,  9, 11
+    // 0, 2,  8, 10
+    //Given center at index 3:
+    uint64_t hash3 = naiveEncodeGeohash(-1, -1, 4);
+    Envelope env = naiveDecodeGeohash(hash3+1, 4);
+    cout << "(" << env.xmin << "," << env.ymin << " ; " << env.xmax << "," << env.ymax << ")" << endl;
+
+    uint64_t min, max;
+    naiveCellMaxMin(hash3, 4, &min, &max, 8);
+    //hash3: 011, min:0110000, max:1000000 after left shift to occupy 8 bits
+    cout << "Expect 48,64: " << min << "," << max << endl;
+
+    //demonstrate pyramids from 2 bits to 4 bits
+    //          5, 7, 13, 15
+    //1,3       4, 6, 12, 14
+    //0,2       1, 3,  9, 11
+    //          0, 2,  8, 10
+    //
+    //index 0 at 2-bits level will be transformed to the (0,1,2,3) quadrant, 4 is the max-exclusive
+    naiveCellMaxMin(0, 2, &min, &max, 4);
+    cout << "Expect 0,4: " << min << "," << max << endl;
+
+    naiveCellMaxMin(1, 2, &min, &max, 4);
+    cout << "Expect 4,8: " << min << "," << max << endl;
+
+    naiveCellMaxMin(2, 2, &min, &max, 4);
+    cout << "Expect 8,12: " << min << "," << max << endl;
+
+    naiveCellMaxMin(3, 2, &min, &max, 4);
+    cout << "Expect 12,16: " << min << "," << max << endl;
 }
 
-
+int main()
+{
+    //testlonlatDistance();
+    //testGeohash();
+    testCellLowerUpperRange();
+    //testGeohashNeighbors();
+    return 0;
+}
 

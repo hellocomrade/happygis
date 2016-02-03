@@ -65,7 +65,7 @@ uint8_t guessNumberOfBits(double radius)
     if(radius > 0)
     {
         while( (radius *= 2) < wmRange.xmax)
-            num += 2; //num is always an odd number since both lon and lat need identical numbers of bit
+            num += 2; //num is always an even number since both lon and lat need identical numbers of bit
     }
     return num;
 }

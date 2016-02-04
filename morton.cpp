@@ -59,7 +59,7 @@ https://github.com/antirez/redis/blob/unstable/src/geo.c#L281
 https://github.com/antirez/redis/blob/unstable/deps/geohash-int/geohash_helper.c
 
  */
-uint8_t guessNumberOfBits(double radius)
+uint8_t guessNumberOfBits(double radius, double lat)
 {
     uint8_t num = 0;
     if(radius > 0)
@@ -67,6 +67,16 @@ uint8_t guessNumberOfBits(double radius)
         while( (radius *= 2) < wmRange.xmax)
             num += 2; //num is always an even number since both lon and lat need identical numbers of bit
     }
+    if(0 == num)
+        num += 2;
+    //https://github.com/antirez/redis/blob/unstable/deps/geohash-int/geohash_helper.c#L66
+    /* Make sure range is included in the worst case. */
+    /* Wider range torwards the poles... Note: it is possible to do better
+     * than this approximation by computing the distance between meridians
+     * at this latitude, but this does the trick for now. */
+    if (lat > 67 || lat < -67) num -= 2;
+    if (lat > 80 || lat < -80) num -= 2;
+
     return num;
 }
 uint8_t estimate_geohash_steps_by_radius(double range_meters)

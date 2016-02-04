@@ -1,5 +1,10 @@
 #include <iostream>
 #include <iomanip>
+#include <vector>
+#include <algorithm>
+#include <set>
+#include <ctime>
+#include <cstdlib>
 #include "binutils.h"
 #include "morton.h"
 #include "envelope.h"
@@ -39,7 +44,7 @@ void testGeohash()
     printEnv(idd, naiveDecodeGeohash(idd, 2, wmRange));
 
     double radius = 50.0;
-    uint8_t bits = guessNumberOfBits(radius);
+    uint8_t bits = guessNumberOfBits(radius, 30.0);
     idd = naiveEncodeGeohash(4842397.8495074, -10601981.5353662, bits, wmRange);
     printEnv(idd, naiveDecodeGeohash(idd, bits, wmRange));
     bits = 2*estimate_geohash_steps_by_radius(radius);
@@ -197,13 +202,140 @@ void testCellLowerUpperRange()
     naiveCellMaxMin(3, 2, &min, &max, 4);
     cout << "Expect 12,16: " << min << "," << max << endl;
 }
+//http://stackoverflow.com/questions/686353/c-random-float-number-generation
+//range: [low, high)
+static inline double randomDouble(double low, double high)
+{
+    return low + random()/(RAND_MAX/(high - low));
+}
+
+/*
+ * Generate random number of points without duplicates
+*/
+void fillPointData(vector<pair<double,double> > &pnts, const Envelope bbox, const uint64_t size)
+{
+    set<pair<double,double> > container;
+    srand(time(NULL));
+    while(container.size() < size)
+        container.insert(std::make_pair<double,double>(randomDouble(bbox.xmin, bbox.xmax) ,randomDouble(bbox.ymin, bbox.ymax)));
+    for(auto itor = container.begin(); itor != container.end(); ++itor)
+        pnts.push_back(*itor);
+}
+
+void testQueryByRadius()
+{
+    const uint8_t bitDepth = 52;
+    const uint32_t pntCount = 1e6;
+    vector<pair<double,double> > pnts;
+    /*
+     * Filling random point data to emulate points on the ground
+    */
+    fillPointData(pnts, llRange, pntCount);
+    cout << pntCount << " points are ready" << endl;
+    //my centos 6 equips with g++4.4.7 that doesn't support c++11
+    //for(auto p:pnts)centerHash
+    //for(auto p = pnts.begin(); p != pnts.end(); ++p)
+    //    cout << (*p).first <<"," << p->second <<endl;
+
+    /*
+     * First, let's geohash all points and save them in a Set so we can conduct binary search later
+     * with guaranteed O(logN)
+     * Default bit depth is 52
+    */
+    set<uint64_t> container;
+    for(auto p = pnts.begin(); p != pnts.end(); ++p)
+        container.insert(naiveEncodeGeohash(p->first, p->second, bitDepth));
+    cout << "Point data have been geohashed" << endl;
+
+    /*
+     * Search POI surrounding my location:
+     *
+     * Set up the lat/lon as the center for search and of course, the radius
+     *
+    */
+    double radius = 1e5;
+    double centerLon = 0.0;
+    double centerLat = 0.0;
+    /*
+     * First let's get the number of bits that are necessary to represent this central lon/lat based upon radius.
+     * In other word, at this particular bit depth level, this raduis is recognizable (has sufficient resolution)
+     * , which means the cell at this bit depth level is greater than the radius.
+    */
+    uint8_t estBitDepth = guessNumberOfBits(radius, centerLat);
+    uint64_t min = 0ULL, max = 0ULL;
+    /*
+     * Encode central lon/lat
+    */
+    uint64_t centerHash = naiveEncodeGeohash(centerLon, centerLat, estBitDepth);
+    /*
+     * According to the hash value at estimated bit depth level, find out what are the corresponding min, max values at level 52.
+     * In other words, with this cell size (at estimated bit-depth level), how many cells at bit-depth level 52 should be covered.
+    */
+    naiveCellMaxMin(centerHash, estBitDepth, &min, &max, bitDepth);
+    /*
+     * Define search ranges
+    */
+    vector<pair<uint64_t, uint64_t> > ranges;
+    ranges.push_back(std::make_pair(min, max));
+    GH_DIRECTION dirs[]{GH_DIRECTION::NORTH, GH_DIRECTION::EAST, GH_DIRECTION::NORTHEAST, GH_DIRECTION::NORTHWEST, GH_DIRECTION::SOUTH, GH_DIRECTION::SOUTHEAST, GH_DIRECTION::SOUTHWEST, GH_DIRECTION::WEST};
+    uint64_t neighborHash = 0ULL;
+    /*
+     * Put all neighbors in, be awared: we didn't try to optimize this by merging overlapping ranges or removing duplicates or invalid,
+     * which should be done in a real world app.
+     */
+    for(int i = 0; i < 8; ++i)
+    {
+        neighborHash = naiveNeighbor(centerHash, estBitDepth, dirs[i]);
+        naiveCellMaxMin(neighborHash, estBitDepth, &min, &max, bitDepth);
+        ranges.push_back(std::make_pair(min, max));
+    }
+    set<uint64_t>::iterator low;
+    uint32_t count = 0;
+    Envelope dll(0, 0, 0, 0);
+    /*
+     * Use a set to hold the hits through geohash-based query in order to avoid any duplicates
+    */
+    set<uint64_t> result;
+    for(int i = 0; i < 9; ++i)
+    {
+        /*
+         * This lower bound value is the starting point, if its value is no greater than ranges[i].second,
+         * we consider all values in between [low, ranges[i].second) as candidates.
+         * Then, we will have to scan all of them to get rid of false candidates.
+        */
+        low = container.lower_bound(ranges[i].first);
+        for(auto itor = low; *itor < ranges[i].second; ++itor)
+        {
+            dll = naiveDecodeGeohash(*itor, bitDepth);
+            /*
+             * Haversine distance
+             * We decode hash into an envelope and then use the center of this envelop to calcuate the distance to the central point
+            */
+            if(lonlatDistHaversine(centerLon, centerLat, (dll.xmax + dll.xmin)/2.0, (dll.ymax + dll.ymin)/2.0) <= radius)
+                result.insert(*itor);
+        }
+    }
+    cout << "Geohash found " << result.size() << " hits!"<<endl;
+    /*
+     * Verify the correctness of geohash based query by comparing the number of hits with a brute-force linear scanning against entire
+     * dataset.
+    */
+    for(auto itor = container.begin(); itor != container.end(); ++itor)
+    {
+        dll = naiveDecodeGeohash(*itor, bitDepth);
+        if(lonlatDistHaversine(centerLon, centerLat, (dll.xmax + dll.xmin)/2.0, (dll.ymax + dll.ymin)/2.0) <= radius)
+            ++count;
+    }
+    cout << "Linear scan found " << count << " hits!"<< endl;
+}
 
 int main()
 {
     //testlonlatDistance();
     //testGeohash();
-    testCellLowerUpperRange();
+    //testCellLowerUpperRange();
     //testGeohashNeighbors();
+    testQueryByRadius();
     return 0;
 }
 

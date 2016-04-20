@@ -11,6 +11,5 @@ install:
  - sudo apt-get install qt5-default qttools5-dev-tools
  - sudo apt-get install qt5-qmake
 script:
- - qmake -project
  - qmake happygis.pro
  - make CXX=g++-4.8 LINK=g++-4.8

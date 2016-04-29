@@ -13,3 +13,4 @@ install:
 script:
  - qmake happygis.pro
  - make CXX=g++-4.8 LINK=g++-4.8
+ - make check
